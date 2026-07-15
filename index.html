@@ -114,15 +114,6 @@
     </div>
   </header>
 
-  <div class="controls">
-    <button id="check">Controlla</button>
-    <button id="reveal-letter" class="ghost">Rivela lettera</button>
-    <button id="reveal-all" class="ghost">Soluzione</button>
-    <button id="clear" class="ghost">Azzera</button>
-    <button id="regen" class="ghost">Nuova griglia</button>
-  </div>
-  <div id="feedback"></div>
-
   <div class="layout" style="margin-top: 16px;">
     <div class="board-wrap"><div id="board"></div></div>
     <div class="clues">
@@ -385,9 +376,9 @@ for (let r = 0; r < rows; r++) {
       inp.dataset.k = k(r, c);
       inp.addEventListener("input", (e) => {
         e.target.value = stripAccents(e.target.value.toUpperCase());
-        clearMarks();
         const next = findNext(r, c);
         if (e.target.value && next) next.focus();
+        updateSolvedList();
       });
       inp.addEventListener("keydown", (e) => {
         if (e.key === "Backspace" && !e.target.value) {
@@ -463,57 +454,6 @@ function updateSolvedList() {
   document.getElementById("solved-count").textContent = count;
   return count;
 }
-
-document.getElementById("check").addEventListener("click", () => {
-  clearMarks();
-  let wrong = 0, filled = 0;
-  for (const key in inputs) {
-    const v = inputs[key].value;
-    if (!v) continue;
-    filled++;
-    const cell = inputs[key].parentElement;
-    if (v === solution[key]) cell.classList.add("ok");
-    else { cell.classList.add("wrong"); wrong++; }
-  }
-  const count = updateSolvedList();
-  const fb = document.getElementById("feedback");
-  if (count === placed.length) {
-    fb.innerHTML = '<div class="banner ok">Griglia completata. Ogni parola cringe è al suo posto.</div>';
-  } else if (filled === 0) {
-    fb.textContent = "Griglia vuota.";
-  } else {
-    fb.textContent = `${count} parole corrette, ${wrong} lettere da rivedere.`;
-  }
-});
-
-document.getElementById("reveal-letter").addEventListener("click", () => {
-  const active = document.activeElement;
-  if (active && active.dataset && active.dataset.k) {
-    active.value = solution[active.dataset.k];
-    const nx = active.dataset.k.split(",").map(Number);
-    const nn = findNext(nx[0], nx[1]);
-    if (nn) nn.focus();
-    updateSolvedList();
-  } else {
-    document.getElementById("feedback").textContent = "Seleziona prima una casella.";
-  }
-});
-
-document.getElementById("reveal-all").addEventListener("click", () => {
-  for (const key in inputs) inputs[key].value = solution[key];
-  clearMarks();
-  updateSolvedList();
-  document.getElementById("feedback").innerHTML = '<div class="banner ok">Soluzione mostrata.</div>';
-});
-
-document.getElementById("clear").addEventListener("click", () => {
-  for (const key in inputs) inputs[key].value = "";
-  clearMarks();
-  updateSolvedList();
-  document.getElementById("feedback").textContent = "";
-});
-
-document.getElementById("regen").addEventListener("click", () => location.reload());
 
 updateSolvedList();
 </script>
