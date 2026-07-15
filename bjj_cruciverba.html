@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cruciverba del Brazilian Jiu-Jitsu</title>
+<style>
+  :root {
+    --bg: #f5f3ec;
+    --surface: #ffffff;
+    --ink: #1a1a17;
+    --muted: #6b6a63;
+    --line: #d9d6cc;
+    --line-strong: #b4b1a7;
+    --accent: #2f5d8a;
+    --accent-bg: #e6f1fb;
+    --ok: #3b6d11;
+    --ok-bg: #eaf3de;
+    --wrong: #a32d2d;
+    --wrong-bg: #fcebeb;
+    --block: #1a1a17;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14140f;
+      --surface: #201f1a;
+      --ink: #ece9e0;
+      --muted: #9a988f;
+      --line: #3a382f;
+      --line-strong: #55524a;
+      --accent: #85b7eb;
+      --accent-bg: #0c447c;
+      --ok: #97c459;
+      --ok-bg: #27500a;
+      --wrong: #f09595;
+      --wrong-bg: #791f1f;
+      --block: #000000;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.6;
+    padding: 24px 16px 64px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  header {
+    display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end;
+    gap: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--line); margin-bottom: 24px;
+  }
+  h1 { font-size: 24px; font-weight: 500; margin: 0; }
+  .sub { font-size: 14px; color: var(--muted); margin: 4px 0 0; }
+  .stats { display: flex; gap: 20px; }
+  .stat-val { font-size: 22px; font-weight: 500; }
+  .stat-lbl { font-size: 12px; color: var(--muted); }
+  .layout { display: grid; grid-template-columns: minmax(0, auto) minmax(280px, 1fr); gap: 32px; align-items: start; }
+  @media (max-width: 860px) { .layout { grid-template-columns: 1fr; } }
+  .board-wrap {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    padding: 16px; overflow-x: auto;
+  }
+  #board { display: inline-grid; gap: 1px; background: var(--line); border: 1px solid var(--line-strong); }
+  .cell { position: relative; width: 30px; height: 30px; background: var(--surface); }
+  .cell.block { background: var(--block); }
+  .cell input {
+    width: 100%; height: 100%; border: none; background: transparent; text-align: center;
+    font-size: 15px; font-weight: 500; text-transform: uppercase; color: var(--ink);
+    padding: 0; outline: none; caret-color: var(--accent);
+  }
+  .cell input:focus { background: var(--accent-bg); }
+  .cell.ok input { background: var(--ok-bg); color: var(--ok); }
+  .cell.wrong input { background: var(--wrong-bg); }
+  .cell .num {
+    position: absolute; top: 0; left: 1px; font-size: 8px; color: var(--muted); line-height: 1;
+    pointer-events: none; font-weight: 400;
+  }
+  .clues { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 560px) { .clues { grid-template-columns: 1fr; } }
+  .clue-col h2 { font-size: 15px; font-weight: 500; margin: 0 0 8px; }
+  .clue-list { list-style: none; margin: 0; padding: 0; }
+  .clue-list li {
+    font-size: 12.5px; padding: 4px 6px; border-radius: 6px; cursor: pointer; color: var(--muted);
+  }
+  .clue-list li:hover { background: var(--accent-bg); }
+  .clue-list li.solved { color: var(--ok); text-decoration: line-through; }
+  .clue-list li b { color: var(--ink); font-weight: 500; }
+  .controls { display: flex; gap: 8px; margin: 20px 0; flex-wrap: wrap; }
+  button {
+    font: inherit; font-size: 13px; font-weight: 500; padding: 8px 14px;
+    background: var(--surface); color: var(--ink); border: 1px solid var(--line-strong);
+    border-radius: 8px; cursor: pointer;
+  }
+  button:hover { background: var(--accent-bg); }
+  button.ghost { color: var(--muted); font-weight: 400; }
+  #feedback { min-height: 24px; font-size: 13px; margin-top: 8px; }
+  .banner { padding: 10px 14px; border-radius: 8px; font-size: 13px; }
+  .banner.ok { background: var(--ok-bg); color: var(--ok); }
+  .note { font-size: 12px; color: var(--muted); margin-top: 24px; max-width: 640px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Cruciverba del Brazilian Jiu-Jitsu</h1>
+      <p class="sub">Il lessico del tatami: posizioni, sottomissioni, concetti e gradi</p>
+    </div>
+    <div class="stats">
+      <div><div class="stat-val" id="solved-count">0</div><div class="stat-lbl">risolte</div></div>
+      <div><div class="stat-val" id="total-count">0</div><div class="stat-lbl">totali</div></div>
+    </div>
+  </header>
+
+  <div class="controls">
+    <button id="check">Controlla</button>
+    <button id="reveal-letter" class="ghost">Rivela lettera</button>
+    <button id="reveal-all" class="ghost">Soluzione</button>
+    <button id="clear" class="ghost">Azzera</button>
+    <button id="regen" class="ghost">Nuova griglia</button>
+  </div>
+  <div id="feedback"></div>
+
+  <div class="layout" style="margin-top: 16px;">
+    <div class="board-wrap"><div id="board"></div></div>
+    <div class="clues">
+      <div class="clue-col">
+        <h2>Orizzontali</h2>
+        <ul class="clue-list" id="across-clues"></ul>
+      </div>
+      <div class="clue-col">
+        <h2>Verticali</h2>
+        <ul class="clue-list" id="down-clues"></ul>
+      </div>
+    </div>
+  </div>
+
+  <p class="note">Le definizioni richiamano tecniche, posizioni e principi del Brazilian Jiu-Jitsu, tra termini adottati dai brasiliani e traduzioni italiane d uso comune. Le lettere accentate compaiono nella soluzione ma nella griglia contano come lettera semplice.</p>
+</div>
+
+<script>
+const WORDS = [
+  { w: "GUARDIA", d: "Si combatte da sotto, con le gambe come arma" },
+  { w: "MONTATA", d: "Chi la conquista siede sul torso avversario" },
+  { w: "TRIANGOLO", d: "Strangolamento chiuso dalle gambe attorno al collo" },
+  { w: "KIMURA", d: "Leva alla spalla che porta il nome di un judoka" },
+  { w: "AMERICANA", d: "Leva alla spalla speculare alla kimura" },
+  { w: "GHIGLIOTTINA", d: "Strangolamento frontale, spesso preso in entrata" },
+  { w: "OMOPLATA", d: "Leva alla spalla eseguita con le gambe" },
+  { w: "BERIMBOLO", d: "Inversione acrobatica per arrivare alla schiena" },
+  { w: "SPAZZATA", d: "Rovesciare l avversario invertendo le posizioni" },
+  { w: "FARFALLA", d: "Guardia con i ganci sotto le cosce" },
+  { w: "RAGNO", d: "Guardia con i piedi appoggiati ai bicipiti" },
+  { w: "TATAMI", d: "Superficie su cui si allena e si combatte" },
+  { w: "CINTURA", d: "Segna il grado, dal bianco al nero" },
+  { w: "BIANCA", d: "Il primo grado, colore di chi inizia" },
+  { w: "NERA", d: "Il grado piu alto, dopo anni di tatami" },
+  { w: "VIOLA", d: "Grado intermedio tra blu e marrone" },
+  { w: "MARRONE", d: "Ultimo grado prima del nero" },
+  { w: "GRACIE", d: "Famiglia brasiliana che diffuse l arte" },
+  { w: "HELIO", d: "Il Gracie che adatto le tecniche al fisico leggero" },
+  { w: "RICKSON", d: "Gracie ritenuto tra i piu forti di sempre" },
+  { w: "LEVA", d: "Principio meccanico che batte la forza bruta" },
+  { w: "PONTE", d: "Spinta d anche per liberarsi da sotto" },
+  { w: "GANCIO", d: "Piede infilato per controllare la schiena" },
+  { w: "PASSAGGIO", d: "Superare la guardia per avanzare di posizione" },
+  { w: "PRESA", d: "Punto di controllo su corpo o kimono" },
+  { w: "KIMONO", d: "Divisa d allenamento, detta anche gi" },
+  { w: "OSS", d: "Saluto e assenso pronunciato sul tatami" },
+  { w: "BATTERE", d: "Segnalare la resa colpendo il tappeto" },
+  { w: "STRANGOLO", d: "Tecnica che agisce su collo o carotidi" },
+  { w: "LEGLOCK", d: "Categoria di leve rivolte alle gambe" },
+  { w: "KNEEBAR", d: "Leva che iperestende il ginocchio" },
+  { w: "ANACONDA", d: "Strangolamento arrotolato su collo e braccio" },
+  { w: "DARCE", d: "Strangolamento che passa sotto l ascella" },
+  { w: "EZEKIEL", d: "Strangolamento eseguito con le maniche" },
+  { w: "NORDSUD", d: "Controllo testa contro testa, corpi opposti" },
+  { w: "MARCELO", d: "Garcia, maestro della guardia moderna" },
+  { w: "SPARRING", d: "Combattimento libero d allenamento" },
+  { w: "DRILL", d: "Ripetizione tecnica per fissare il gesto" },
+  { w: "BASE", d: "Equilibrio che impedisce il rovesciamento" },
+  { w: "POSTURA", d: "Assetto eretto per non farsi tirare giu" },
+  { w: "GAMBERO", d: "Movimento d anca per creare spazio da sotto" },
+  { w: "CROCIFISSO", d: "Controllo che blocca entrambe le braccia" },
+  { w: "JOGO", d: "Il gioco, lo scambio tecnico in portoghese" },
+  { w: "FLUSSO", d: "Scorrere tra le tecniche senza forzare" },
+  { w: "ARMBAR", d: "Leva che iperestende il gomito" },
+  { w: "CLINCH", d: "Corpo a corpo in piedi prima della caduta" },
+  { w: "KESA", d: "Controllo laterale del judo, sul fianco" },
+  { w: "MEZZAGUARDIA", d: "Guardia che trattiene una sola gamba" },
+  { w: "HEELHOOK", d: "Temuta leva rotatoria sul tallone" },
+  { w: "INVERSIONE", d: "Ribaltare il proprio corpo per attaccare" },
+  { w: "RESA", d: "Cio che la sottomissione impone" },
+  { w: "MAT", d: "Il tappeto, in gergo internazionale" },
+  { w: "TAP", d: "Il colpo di resa, in inglese" },
+  { w: "GI", d: "Nome giapponese della divisa" },
+  { w: "OVERHOOK", d: "Braccio che avvolge dall alto quello avversario" }
+];
+
+function stripAccents(s) {
+  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+function generate(words) {
+  const items = words.map(o => ({ display: o.w, grid: stripAccents(o.w), clue: o.d }))
+    .sort((a, b) => b.grid.length - a.grid.length);
+
+  let placed = [];
+  let cells = {};
+  let bMinR = 0, bMaxR = 0, bMinC = 0, bMaxC = 0;
+
+  function key(r, c) { return r + "," + c; }
+
+  function crossValid(item, r, c, dir) {
+    let crosses = 0;
+    for (let i = 0; i < item.grid.length; i++) {
+      const rr = dir === "A" ? r : r + i;
+      const cc = dir === "A" ? c + i : c;
+      const ex = cells[key(rr, cc)];
+      if (ex) {
+        if (ex !== item.grid[i]) return -1;
+        crosses++;
+      } else {
+        if (dir === "A") {
+          if (cells[key(rr - 1, cc)] || cells[key(rr + 1, cc)]) return -1;
+        } else {
+          if (cells[key(rr, cc - 1)] || cells[key(rr, cc + 1)]) return -1;
+        }
+      }
+    }
+    if (dir === "A") {
+      if (cells[key(r, c - 1)] || cells[key(r, c + item.grid.length)]) return -1;
+    } else {
+      if (cells[key(r - 1, c)] || cells[key(r + item.grid.length, c)]) return -1;
+    }
+    return crosses;
+  }
+
+  const CAP = 17;
+
+  function withinCap(item, r, c, dir) {
+    const er = dir === "A" ? r : r + item.grid.length - 1;
+    const ec = dir === "A" ? c + item.grid.length - 1 : c;
+    const h = Math.max(bMaxR, er) - Math.min(bMinR, r) + 1;
+    const w = Math.max(bMaxC, ec) - Math.min(bMinC, c) + 1;
+    return h <= CAP && w <= CAP;
+  }
+
+  function bboxGrowth(item, r, c, dir) {
+    const er = dir === "A" ? r : r + item.grid.length - 1;
+    const ec = dir === "A" ? c + item.grid.length - 1 : c;
+    const nMinR = Math.min(bMinR, r), nMaxR = Math.max(bMaxR, er);
+    const nMinC = Math.min(bMinC, c), nMaxC = Math.max(bMaxC, ec);
+    const before = (bMaxR - bMinR + 1) * (bMaxC - bMinC + 1);
+    const after = (nMaxR - nMinR + 1) * (nMaxC - nMinC + 1);
+    return after - before;
+  }
+
+  function commit(item, r, c, dir) {
+    for (let i = 0; i < item.grid.length; i++) {
+      const rr = dir === "A" ? r : r + i;
+      const cc = dir === "A" ? c + i : c;
+      cells[key(rr, cc)] = item.grid[i];
+    }
+    const er = dir === "A" ? r : r + item.grid.length - 1;
+    const ec = dir === "A" ? c + item.grid.length - 1 : c;
+    bMinR = Math.min(bMinR, r); bMaxR = Math.max(bMaxR, er);
+    bMinC = Math.min(bMinC, c); bMaxC = Math.max(bMaxC, ec);
+    placed.push({ ...item, r, c, dir });
+  }
+
+  function tryPlace(item) {
+    if (placed.length === 0) { commit(item, 0, 0, "A"); return true; }
+    const cands = [];
+    for (const p of placed) {
+      for (let pi = 0; pi < p.grid.length; pi++) {
+        for (let ni = 0; ni < item.grid.length; ni++) {
+          if (p.grid[pi] !== item.grid[ni]) continue;
+          let r, c, dir;
+          if (p.dir === "A") { dir = "D"; r = p.r - ni; c = p.c + pi; }
+          else { dir = "A"; r = p.r + pi; c = p.c - ni; }
+          const cr = crossValid(item, r, c, dir);
+          if (cr < 0) continue;
+          if (!withinCap(item, r, c, dir)) continue;
+          const g = bboxGrowth(item, r, c, dir);
+          cands.push({ r, c, dir, score: cr * 100 - g + Math.random() * 3 });
+        }
+      }
+    }
+    if (cands.length === 0) return false;
+    cands.sort((a, b) => b.score - a.score);
+    commit(item, cands[0].r, cands[0].c, cands[0].dir);
+    return true;
+  }
+
+  for (let pass = 0; pass < 8; pass++) {
+    for (let i = items.length - 1; i >= 0; i--) {
+      const it = items[i];
+      if (placed.find(p => p.grid === it.grid)) continue;
+      tryPlace(it);
+    }
+  }
+
+  return { placed, cells };
+}
+
+function fillRatio(res) {
+  let n = 0, mnR = Infinity, mxR = -Infinity, mnC = Infinity, mxC = -Infinity;
+  for (const key in res.cells) {
+    const parts = key.split(",");
+    const r = +parts[0], c = +parts[1];
+    mnR = Math.min(mnR, r); mxR = Math.max(mxR, r);
+    mnC = Math.min(mnC, c); mxC = Math.max(mxC, c);
+    n++;
+  }
+  const area = (mxR - mnR + 1) * (mxC - mnC + 1);
+  return n / area;
+}
+
+let best = null, bestScore = -1;
+for (let attempt = 0; attempt < 500; attempt++) {
+  const res = generate(WORDS);
+  const ratio = fillRatio(res);
+  const composite = res.placed.length * 1.2 + ratio * 40;
+  if (composite > bestScore) { bestScore = composite; best = res.placed; }
+}
+
+let placed = best;
+
+let minR = Infinity, minC = Infinity, maxR = -Infinity, maxC = -Infinity;
+for (const p of placed) {
+  for (let i = 0; i < p.grid.length; i++) {
+    const rr = p.dir === "A" ? p.r : p.r + i;
+    const cc = p.dir === "A" ? p.c + i : p.c;
+    minR = Math.min(minR, rr); maxR = Math.max(maxR, rr);
+    minC = Math.min(minC, cc); maxC = Math.max(maxC, cc);
+  }
+}
+for (const p of placed) { p.r -= minR; p.c -= minC; }
+const rows = maxR - minR + 1;
+const cols = maxC - minC + 1;
+
+const solution = {};
+const owner = {};
+function k(r, c) { return r + "," + c; }
+for (const p of placed) {
+  for (let i = 0; i < p.grid.length; i++) {
+    const rr = p.dir === "A" ? p.r : p.r + i;
+    const cc = p.dir === "A" ? p.c + i : p.c;
+    solution[k(rr, cc)] = p.grid[i];
+    (owner[k(rr, cc)] = owner[k(rr, cc)] || []).push(p);
+  }
+}
+
+const startCells = {};
+let num = 0;
+const sortedStarts = [...placed].sort((a, b) => a.r - b.r || a.c - b.c);
+const numByStart = {};
+for (const p of sortedStarts) {
+  const sk = k(p.r, p.c);
+  if (!numByStart[sk]) { num++; numByStart[sk] = num; }
+  p.num = numByStart[sk];
+}
+
+const board = document.getElementById("board");
+board.style.gridTemplateColumns = `repeat(${cols}, 30px)`;
+const inputs = {};
+for (let r = 0; r < rows; r++) {
+  for (let c = 0; c < cols; c++) {
+    const div = document.createElement("div");
+    div.className = "cell";
+    if (!solution[k(r, c)]) {
+      div.classList.add("block");
+    } else {
+      if (numByStart[k(r, c)]) {
+        const n = document.createElement("span");
+        n.className = "num";
+        n.textContent = numByStart[k(r, c)];
+        div.appendChild(n);
+      }
+      const inp = document.createElement("input");
+      inp.maxLength = 1;
+      inp.dataset.k = k(r, c);
+      inp.addEventListener("input", (e) => {
+        e.target.value = stripAccents(e.target.value.toUpperCase());
+        clearMarks();
+        const next = findNext(r, c);
+        if (e.target.value && next) next.focus();
+      });
+      inp.addEventListener("keydown", (e) => {
+        if (e.key === "Backspace" && !e.target.value) {
+          const prev = findPrev(r, c);
+          if (prev) prev.focus();
+        }
+      });
+      div.appendChild(inp);
+      inputs[k(r, c)] = inp;
+    }
+    board.appendChild(div);
+  }
+}
+
+function findNext(r, c) {
+  if (inputs[k(r, c + 1)]) return inputs[k(r, c + 1)];
+  if (inputs[k(r + 1, c)]) return inputs[k(r + 1, c)];
+  return null;
+}
+function findPrev(r, c) {
+  if (inputs[k(r, c - 1)]) return inputs[k(r, c - 1)];
+  if (inputs[k(r - 1, c)]) return inputs[k(r - 1, c)];
+  return null;
+}
+
+const acrossUl = document.getElementById("across-clues");
+const downUl = document.getElementById("down-clues");
+const across = placed.filter(p => p.dir === "A").sort((a, b) => a.num - b.num);
+const down = placed.filter(p => p.dir === "D").sort((a, b) => a.num - b.num);
+
+function renderClues(list, ul) {
+  ul.innerHTML = "";
+  for (const p of list) {
+    const li = document.createElement("li");
+    li.innerHTML = `<b>${p.num}.</b> ${p.clue} <span style="opacity:.6">(${p.display.length})</span>`;
+    li.dataset.word = p.display;
+    li.addEventListener("click", () => {
+      const inp = inputs[k(p.r, p.c)];
+      if (inp) inp.focus();
+    });
+    ul.appendChild(li);
+  }
+}
+renderClues(across, acrossUl);
+renderClues(down, downUl);
+
+document.getElementById("total-count").textContent = placed.length;
+
+function clearMarks() {
+  document.querySelectorAll(".cell.ok, .cell.wrong").forEach(el => el.classList.remove("ok", "wrong"));
+}
+
+function wordSolved(p) {
+  for (let i = 0; i < p.grid.length; i++) {
+    const rr = p.dir === "A" ? p.r : p.r + i;
+    const cc = p.dir === "A" ? p.c + i : p.c;
+    if ((inputs[k(rr, cc)].value || "") !== p.grid[i]) return false;
+  }
+  return true;
+}
+
+function updateSolvedList() {
+  let count = 0;
+  const mark = (list, ul) => {
+    [...ul.children].forEach((li, idx) => {
+      const p = list[idx];
+      if (wordSolved(p)) { li.classList.add("solved"); count++; }
+      else li.classList.remove("solved");
+    });
+  };
+  mark(across, acrossUl);
+  mark(down, downUl);
+  document.getElementById("solved-count").textContent = count;
+  return count;
+}
+
+document.getElementById("check").addEventListener("click", () => {
+  clearMarks();
+  let wrong = 0, filled = 0;
+  for (const key in inputs) {
+    const v = inputs[key].value;
+    if (!v) continue;
+    filled++;
+    const cell = inputs[key].parentElement;
+    if (v === solution[key]) cell.classList.add("ok");
+    else { cell.classList.add("wrong"); wrong++; }
+  }
+  const count = updateSolvedList();
+  const fb = document.getElementById("feedback");
+  if (count === placed.length) {
+    fb.innerHTML = '<div class="banner ok">Griglia completata. Ogni parola cringe è al suo posto.</div>';
+  } else if (filled === 0) {
+    fb.textContent = "Griglia vuota.";
+  } else {
+    fb.textContent = `${count} parole corrette, ${wrong} lettere da rivedere.`;
+  }
+});
+
+document.getElementById("reveal-letter").addEventListener("click", () => {
+  const active = document.activeElement;
+  if (active && active.dataset && active.dataset.k) {
+    active.value = solution[active.dataset.k];
+    const nx = active.dataset.k.split(",").map(Number);
+    const nn = findNext(nx[0], nx[1]);
+    if (nn) nn.focus();
+    updateSolvedList();
+  } else {
+    document.getElementById("feedback").textContent = "Seleziona prima una casella.";
+  }
+});
+
+document.getElementById("reveal-all").addEventListener("click", () => {
+  for (const key in inputs) inputs[key].value = solution[key];
+  clearMarks();
+  updateSolvedList();
+  document.getElementById("feedback").innerHTML = '<div class="banner ok">Soluzione mostrata.</div>';
+});
+
+document.getElementById("clear").addEventListener("click", () => {
+  for (const key in inputs) inputs[key].value = "";
+  clearMarks();
+  updateSolvedList();
+  document.getElementById("feedback").textContent = "";
+});
+
+document.getElementById("regen").addEventListener("click", () => location.reload());
+
+updateSolvedList();
+</script>
+</body>
+</html>
